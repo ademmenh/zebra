@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include "pty.h"
 #include "emulator.h"
@@ -12,6 +14,15 @@ int runParent(Pty *pty) {
 }
 
 int runChild(Pty *pty){
+    // Get user's default shell through pw->pw_shell instead of hardcoding bash		
+    uid_t uid = getuid();                 
+    struct passwd *pw = getpwuid(uid);
+    
+    if (pw == NULL) {
+        perror("getpwuid");
+        return 1;
+    }
+
     close(pty->master);
     // with setsid()
     // the process is the leader of the new session
@@ -30,7 +41,7 @@ int runChild(Pty *pty){
     dup2(pty->slave, 0);
     dup2(pty->slave, 1);
     dup2(pty->slave, 2);
-    execvp("bash", (char *[]){"bash", NULL});
+    execvp(pw->pw_shell, (char *[]){pw->pw_shell, NULL});
     return 0;
 }
 
